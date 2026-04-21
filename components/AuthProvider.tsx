@@ -34,19 +34,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const supabase = createClient()
 
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+      
+      if (error) {
+        console.error('Ошибка загрузки профиля:', error.message)
+        // В случае ошибки можно попробовать перезагрузить сессию или выйти
+        // Пока просто ставим null, чтобы интерфейс не зависал
+        setProfile(null)
+      } else {
+        setProfile(data)
+      }
+    } catch (err) {
+      console.error('Неожиданная ошибка загрузки профиля:', err)
+      setProfile(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
       if (user) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-        setProfile(data)
+        await fetchProfile(user.id)
+      } else {
+        setProfile(null)
+        setLoading(false)
       }
-      setLoading(false)
     }
     getUser()
 
@@ -54,16 +75,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const currentUser = session?.user ?? null
       setUser(currentUser)
       if (currentUser) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', currentUser.id)
-          .single()
-        setProfile(data)
+        await fetchProfile(currentUser.id)
       } else {
         setProfile(null)
+        setLoading(false)
       }
-      setLoading(false)
       router.refresh()
     })
 
