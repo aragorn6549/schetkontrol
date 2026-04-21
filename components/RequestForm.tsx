@@ -122,10 +122,15 @@ export function RequestForm({ userId }: { userId: string }) {
                 <DialogTrigger asChild>
                   <Button type="button" variant="outline">Новый</Button>
                 </DialogTrigger>
-                <DialogContent>
+                
+                <DialogContent aria-describedby="new-counterparty-description">
                   <DialogHeader>
                     <DialogTitle>Новый контрагент</DialogTitle>
                   </DialogHeader>
+                  <div id="new-counterparty-description" className="sr-only">
+                    Форма создания нового контрагента. Заполните все обязательные поля.
+                  </div>
+                  
                   <div className="space-y-4">
                     <Input placeholder="Наименование" value={newCounterparty.name} onChange={(e) => setNewCounterparty({...newCounterparty, name: e.target.value})} />
                     <Input placeholder="ИНН" value={newCounterparty.inn} onChange={(e) => setNewCounterparty({...newCounterparty, inn: e.target.value})} />
