@@ -56,29 +56,30 @@ export function RequestForm({ userId }: { userId: string }) {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedCounterpartyId) return alert('Выберите или создайте контрагента')
-    setLoading(true)
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  if (!selectedCounterpartyId) return alert('Выберите или создайте контрагента')
+  setLoading(true)
 
-    const { error } = await supabase.from('requests').insert({
-      project_name: projectName,
-      deal_number: dealNumber,
-      supplier_invoice_number: supplierInvoiceNumber,
-      invoice_url: invoiceUrl,
-      counterparty_id: selectedCounterpartyId,
-      created_by: userId,
-      status: 'pending_security' // если контрагент уже approved, триггер переведет в pending_director
-    })
+  // Используем RPC вызов вместо прямой вставки
+  const { data, error } = await supabase.rpc('create_request', {
+    p_project_name: projectName,
+    p_deal_number: dealNumber,
+    p_supplier_invoice_number: supplierInvoiceNumber,
+    p_invoice_url: invoiceUrl,
+    p_counterparty_id: selectedCounterpartyId,
+    p_created_by: userId
+  })
 
-    if (!error) {
-      router.push('/dashboard')
-      router.refresh()
-    } else {
-      alert('Ошибка создания заявки')
-    }
-    setLoading(false)
+  if (!error) {
+    router.push('/dashboard')
+    router.refresh()
+  } else {
+    console.error('Ошибка создания заявки:', error)
+    alert(`Ошибка создания заявки: ${error.message}`)
   }
+  setLoading(false)
+}
 
   return (
     <Card>
