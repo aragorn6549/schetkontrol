@@ -26,9 +26,7 @@ type Invoice = {
     inn: string
     status: string
   }
-  profiles: {
-    full_name: string
-  }
+
 }
 
 type RequestDetails = {
