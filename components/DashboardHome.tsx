@@ -95,9 +95,14 @@ export function DashboardHome() {
         let invQuery = supabase
           .from('invoices')
           .select(`
-            id, invoice_number, amount, invoice_url, status, created_at,
-            counterparty ( name ),
-            request ( internal_number )
+            id,
+            invoice_number,
+            amount,
+            invoice_url,
+            status,
+            created_at,
+            counterparty:counterparty_id ( name ),
+            request:request_id ( internal_number )
           `)
           .is('request_id', null)
           .order('created_at', { ascending: false })
