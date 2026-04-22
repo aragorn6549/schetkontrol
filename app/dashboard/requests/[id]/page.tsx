@@ -118,7 +118,14 @@ export default function RequestDetailPage() {
   }
 
   if (loading) return <div>Загрузка...</div>
-  if (!request) return <div>Заявка не найдена</div>
+  if (!request) return (
+  <div className="p-4">
+    <p className="text-red-500 mb-4">Заявка не найдена или у вас нет к ней доступа.</p>
+    <Link href="/dashboard">
+      <Button>Вернуться на главную</Button>
+    </Link>
+  </div>
+)
 
   const totalAmount = request.invoices?.reduce((sum, inv) => sum + (inv.amount || 0), 0) || 0
 
