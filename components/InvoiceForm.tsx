@@ -79,7 +79,7 @@ export function InvoiceForm({ userId, defaultRequestId }: { userId: string; defa
       p_counterparty_id: selectedCounterpartyId,
       p_invoice_number: invoiceNumber,
       p_amount: parseFloat(amount),
-      p_invoice_url: invoiceUrl,
+      p_invoice_url: invoiceUrl || null, // если пусто, передаём null
       p_created_by: userId
     })
 
@@ -120,8 +120,12 @@ export function InvoiceForm({ userId, defaultRequestId }: { userId: string; defa
             />
           </div>
           <div>
-            <Label>Ссылка на файл счёта (URL)</Label>
-            <Input type="url" value={invoiceUrl} onChange={(e) => setInvoiceUrl(e.target.value)} required />
+            <Label>Ссылка на файл счёта (URL) — опционально</Label>
+            <Input 
+              type="url" 
+              value={invoiceUrl} 
+              onChange={(e) => setInvoiceUrl(e.target.value)} 
+            />
           </div>
           <div>
             <Label>Привязать к заявке (опционально)</Label>
