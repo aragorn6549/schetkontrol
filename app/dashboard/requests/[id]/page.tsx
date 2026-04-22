@@ -50,40 +50,38 @@ export default function RequestDetailPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  useEffect(() => {
-    const fetchRequest = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('requests')
-          .select(`
-            *,
-            profiles:created_by(full_name),
-            invoices(
-              *,
-              counterparties(name, inn, status)
-            )
-          `)
-          .eq('id', id)
-          .single()
+useEffect(() => {
+  const fetchRequest = async () => {
+    try {
+      // Самый простой запрос: только поля таблицы requests
+      const { data, error } = await supabase
+        .from('requests')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-        if (error) {
-          console.error('Ошибка загрузки заявки:', error)
-          setRequest(null)
-        } else if (data) {
-          // Проверяем, что data не является ошибкой парсинга
-          setRequest(data as RequestDetails)
-        } else {
-          setRequest(null)
-        }
-      } catch (err) {
-        console.error('Критическая ошибка:', err)
-        setRequest(null)
-      } finally {
-        setLoading(false)
+      if (error) {
+        console.error('Ошибка загрузки заявки:', error);
+        setRequest(null);
+      } else if (data) {
+        // Приводим к типу RequestDetails (пока без вложенных полей)
+        setRequest({
+          ...data,
+          profiles: null, // временно
+          invoices: []    // временно
+        } as RequestDetails);
+      } else {
+        setRequest(null);
       }
+    } catch (err) {
+      console.error('Критическая ошибка:', err);
+      setRequest(null);
+    } finally {
+      setLoading(false);
     }
-    fetchRequest()
-  }, [id, supabase])
+  };
+  fetchRequest();
+}, [id, supabase]);
 
   const handleApproveInvoice = async (invoiceId: string) => {
     setActionLoading(true)
