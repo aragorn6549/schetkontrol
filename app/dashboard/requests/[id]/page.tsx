@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import Link from 'next/link'
+import { Trash2 } from 'lucide-react'
 
 type Invoice = {
   id: string
@@ -123,12 +124,32 @@ export default function RequestDetailPage() {
 
   return (
     <div className="max-w-6xl">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">{request.internal_number}</h1>
-        <Link href={`/dashboard/requests/${id}/new-invoice`}>
-          <Button>+ Добавить счёт</Button>
-        </Link>
-      </div>
+      
+     <div className="flex justify-between items-center mb-6">
+       <h1 className="text-2xl font-bold">{request.internal_number}</h1>
+       <div className="flex gap-2">
+         <Link href={`/dashboard/requests/${id}/new-invoice`}>
+           <Button>+ Добавить счёт</Button>
+         </Link>
+         {profile?.id === (request as any).created_by && (
+           <Button
+             variant="destructive"
+             size="sm"
+             onClick={async () => {
+               if (!confirm('Удалить заявку? Связанные счета останутся, но будут отвязаны.')) return
+               const { error } = await supabase.from('requests').delete().eq('id', id)
+               if (!error) {
+                 router.push('/dashboard')
+               } else {
+                 alert('Ошибка удаления: ' + error.message)
+               }
+             }}
+           >
+             <Trash2 className="h-4 w-4 mr-1" /> Удалить заявку
+           </Button>
+         )}
+       </div>
+     </div>
 
       <Card className="mb-6">
         <CardHeader>
@@ -237,6 +258,26 @@ export default function RequestDetailPage() {
                         </Dialog>
                       )}
                     </div>
+
+                     {profile?.id === (inv as any).created_by && (
+                       <Button
+                         variant="ghost"
+                         size="icon"
+                         className="text-red-500"
+                         onClick={async () => {
+                           if (!confirm('Удалить счёт?')) return
+                           const { error } = await supabase.from('invoices').delete().eq('id', inv.id)
+                           if (!error) {
+                             router.refresh()
+                           } else {
+                             alert('Ошибка удаления: ' + error.message)
+                           }
+                         }}
+                       >
+                         <Trash2 className="h-4 w-4" />
+                       </Button>
+                     )}
+                    
                   </TableCell>
                 </TableRow>
               )
