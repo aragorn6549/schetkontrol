@@ -1,4 +1,3 @@
-// components/DashboardHome.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -93,8 +92,8 @@ export function DashboardHome() {
         .from('invoices')
         .select(`
           id, invoice_number, amount, invoice_url, status, created_at,
-          counterparty ( name ),
-          request ( internal_number )
+          counterparties ( name ),
+          requests ( internal_number )
         `)
         .is('request_id', null)
         .order('created_at', { ascending: false })
@@ -108,7 +107,7 @@ export function DashboardHome() {
       const { data: invData, error: invError } = await invQuery
       if (invError) console.error('Ошибка загрузки счетов:', invError)
 
-      // Преобразуем данные к типу InvoiceSummary (обрабатываем возможные массивы)
+      // Преобразуем данные к типу InvoiceSummary
       const formattedInvoices: InvoiceSummary[] = (invData || []).map((inv: any) => ({
         id: inv.id,
         invoice_number: inv.invoice_number,
@@ -116,8 +115,8 @@ export function DashboardHome() {
         invoice_url: inv.invoice_url,
         status: inv.status,
         created_at: inv.created_at,
-        counterparty: Array.isArray(inv.counterparty) ? inv.counterparty[0] : inv.counterparty,
-        request: Array.isArray(inv.request) ? inv.request[0] : inv.request
+        counterparty: inv.counterparties ? (Array.isArray(inv.counterparties) ? inv.counterparties[0] : inv.counterparties) : null,
+        request: inv.requests ? (Array.isArray(inv.requests) ? inv.requests[0] : inv.requests) : null
       }))
 
       setStandaloneInvoices(formattedInvoices)
