@@ -41,13 +41,16 @@ export function DashboardHome() {
   const [requests, setRequests] = useState<RequestSummary[]>([])
   const [standaloneInvoices, setStandaloneInvoices] = useState<InvoiceSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { profile } = useAuth()
   const supabase = createClient()
   const role = profile?.role
 
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true)
+      try {
+        setLoading(true)
+        setError(null)
 
       // Запрос заявок с агрегацией
       let requestsQuery = supabase
@@ -119,15 +122,19 @@ export function DashboardHome() {
         request: Array.isArray(inv.request) ? inv.request[0] : inv.request
       }))
 
-      setStandaloneInvoices(formattedInvoices)
-      setLoading(false)
+      } catch (err: any) {
+        console.error('Ошибка загрузки данных:', err)
+        setError(err.message || 'Не удалось загрузить данные. Проверьте подключение.')
+      } finally {
+        setLoading(false)
+      }
     }
 
     fetchData()
   }, [supabase, role, profile?.id])
 
-  if (loading) {
-    return <div className="p-4">Загрузка данных...</div>
+  if (loading) return <div className="p-4">Загрузка данных...</div>
+  if (error) return <div className="p-4 text-red-500">Ошибка: {error}</div>
   }
 
   return (
