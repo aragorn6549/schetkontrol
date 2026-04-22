@@ -17,29 +17,28 @@ export default function NewRequestPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-     e.preventDefault();
-     if (!profile?.id) {
-        alert('Ошибка: пользователь не авторизован');
-        return;
-     }
-    setLoading(true);
-    const { data, error } = await supabase
-       .from('requests')
-       .insert({
-         project_name: projectName,
-         deal_number: dealNumber,
-         created_by: profile.id
-        })
-      .select('id')
-      .single()
-    if (!error && data) {
-      router.push(`/dashboard/requests/${data.id}`)
-    } else {
-      alert('Ошибка создания заявки')
-    }
-    setLoading(false)
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  if (!profile?.id) {
+    alert('Ошибка: пользователь не авторизован')
+    return
   }
+  setLoading(true)
+  
+  const { data: requestId, error } = await supabase.rpc('create_request', {
+    p_project_name: projectName,
+    p_deal_number: dealNumber,
+    p_created_by: profile.id
+  })
+  
+  if (!error && requestId) {
+    router.push(`/dashboard/requests/${requestId}`)
+  } else {
+    console.error('Ошибка создания заявки:', error)
+    alert('Ошибка создания заявки')
+  }
+  setLoading(false)
+}
 
   if (!profile || (profile.role !== 'engineer' && profile.role !== 'director' && profile.role !== 'accountant')) {
     return <div>Доступ запрещен</div>
