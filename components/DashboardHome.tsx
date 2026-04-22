@@ -46,81 +46,93 @@ export function DashboardHome() {
 
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true)
+      try {
+        setLoading(true)
 
-      // Запрос заявок с агрегацией
-      let requestsQuery = supabase
-        .from('requests')
-        .select(`
-          id, internal_number, project_name, deal_number, created_at,
-          invoices ( id )
-        `)
-        .order('created_at', { ascending: false })
+        // Запрос заявок с агрегацией
+        let requestsQuery = supabase
+          .from('requests')
+          .select(`
+            id, internal_number, project_name, deal_number, created_at,
+            invoices ( id )
+          `)
+          .order('created_at', { ascending: false })
 
-      if (role === 'engineer' && profile?.id) {
-        requestsQuery = requestsQuery.eq('created_by', profile.id)
+        if (role === 'engineer' && profile?.id) {
+          requestsQuery = requestsQuery.eq('created_by', profile.id)
+        }
+
+        const { data: reqData, error: reqError } = await requestsQuery
+        if (reqError) {
+          console.error('Ошибка загрузки заявок:', reqError)
+          throw reqError
+        }
+
+        // Для каждой заявки считаем сумму счетов отдельно
+        const requestsWithAmount: RequestSummary[] = await Promise.all(
+          (reqData || []).map(async (req: any) => {
+            const { data: sumData, error } = await supabase
+              .from('invoices')
+              .select('amount')
+              .eq('request_id', req.id)
+
+            if (error) console.error('Ошибка получения сумм:', error)
+            const total = (sumData || []).reduce((s, inv) => s + (inv.amount || 0), 0)
+            return {
+              id: req.id,
+              internal_number: req.internal_number,
+              project_name: req.project_name,
+              deal_number: req.deal_number,
+              created_at: req.created_at,
+              invoice_count: req.invoices?.length || 0,
+              total_amount: total
+            }
+          })
+        )
+        setRequests(requestsWithAmount)
+
+        // Запрос счетов без заявки
+        let invQuery = supabase
+          .from('invoices')
+          .select(`
+            id, invoice_number, amount, invoice_url, status, created_at,
+            counterparties ( name ),
+            requests ( internal_number )
+          `)
+          .is('request_id', null)
+          .order('created_at', { ascending: false })
+
+        if (role === 'engineer' && profile?.id) {
+          invQuery = invQuery.eq('created_by', profile.id)
+        } else if (role === 'accountant') {
+          invQuery = invQuery.in('status', ['approved', 'paid'])
+        }
+
+        const { data: invData, error: invError } = await invQuery
+        if (invError) {
+          console.error('Ошибка загрузки счетов:', invError)
+          throw invError
+        }
+
+        // Преобразуем данные к типу InvoiceSummary
+        const formattedInvoices: InvoiceSummary[] = (invData || []).map((inv: any) => ({
+          id: inv.id,
+          invoice_number: inv.invoice_number,
+          amount: inv.amount,
+          invoice_url: inv.invoice_url,
+          status: inv.status,
+          created_at: inv.created_at,
+          counterparty: inv.counterparties ? (Array.isArray(inv.counterparties) ? inv.counterparties[0] : inv.counterparties) : null,
+          request: inv.requests ? (Array.isArray(inv.requests) ? inv.requests[0] : inv.requests) : null
+        }))
+
+        setStandaloneInvoices(formattedInvoices)
+      } catch (error) {
+        console.error('Ошибка загрузки данных:', error)
+        // Можно показать пользователю уведомление об ошибке
+      } finally {
+        setLoading(false)
       }
-
-      const { data: reqData, error: reqError } = await requestsQuery
-      if (reqError) console.error('Ошибка загрузки заявок:', reqError)
-
-      // Для каждой заявки считаем сумму счетов отдельно
-      const requestsWithAmount: RequestSummary[] = await Promise.all(
-        (reqData || []).map(async (req: any) => {
-          const { data: sumData, error } = await supabase
-            .from('invoices')
-            .select('amount')
-            .eq('request_id', req.id)
-
-          if (error) console.error('Ошибка получения сумм:', error)
-          const total = (sumData || []).reduce((s, inv) => s + (inv.amount || 0), 0)
-          return {
-            id: req.id,
-            internal_number: req.internal_number,
-            project_name: req.project_name,
-            deal_number: req.deal_number,
-            created_at: req.created_at,
-            invoice_count: req.invoices?.length || 0,
-            total_amount: total
-          }
-        })
-      )
-      setRequests(requestsWithAmount)
-
-      // Запрос счетов без заявки
-      let invQuery = supabase
-        .from('invoices')
-        .select(`
-          id, invoice_number, amount, invoice_url, status, created_at,
-          counterparties ( name ),
-          requests ( internal_number )
-        `)
-        .is('request_id', null)
-        .order('created_at', { ascending: false })
-
-      if (role === 'engineer' && profile?.id) {
-        invQuery = invQuery.eq('created_by', profile.id)
-      } else if (role === 'accountant') {
-        invQuery = invQuery.in('status', ['approved', 'paid'])
-      }
-
-      const { data: invData, error: invError } = await invQuery
-      if (invError) console.error('Ошибка загрузки счетов:', invError)
-
-      // Преобразуем данные к типу InvoiceSummary
-      const formattedInvoices: InvoiceSummary[] = (invData || []).map((inv: any) => ({
-        id: inv.id,
-        invoice_number: inv.invoice_number,
-        amount: inv.amount,
-        invoice_url: inv.invoice_url,
-        status: inv.status,
-        created_at: inv.created_at,
-        counterparty: inv.counterparties ? (Array.isArray(inv.counterparties) ? inv.counterparties[0] : inv.counterparties) : null,
-        request: inv.requests ? (Array.isArray(inv.requests) ? inv.requests[0] : inv.requests) : null
-      }))
-
-      setStandaloneInvoices(formattedInvoices)
-      setLoading(false)
     }
 
     fetchData()
