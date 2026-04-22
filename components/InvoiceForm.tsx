@@ -27,7 +27,7 @@ export function InvoiceForm({ userId, defaultRequestId }: { userId: string; defa
   const [amount, setAmount] = useState('')
   const [invoiceUrl, setInvoiceUrl] = useState('')
   const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string>('')
-  const [selectedRequestId, setSelectedRequestId] = useState<string>(defaultRequestId || '')
+  const [selectedRequestId, setSelectedRequestId] = useState<string>(defaultRequestId || '__none__')
   const [counterparties, setCounterparties] = useState<Counterparty[]>([])
   const [requests, setRequests] = useState<RequestOption[]>([])
   const [loading, setLoading] = useState(false)
@@ -72,8 +72,10 @@ export function InvoiceForm({ userId, defaultRequestId }: { userId: string; defa
     if (!amount || parseFloat(amount) <= 0) return alert('Введите корректную сумму')
     setLoading(true)
 
+    const requestId = selectedRequestId === '__none__' ? null : selectedRequestId
+
     const { error } = await supabase.rpc('create_invoice', {
-      p_request_id: selectedRequestId || null,
+      p_request_id: requestId,
       p_counterparty_id: selectedCounterpartyId,
       p_invoice_number: invoiceNumber,
       p_amount: parseFloat(amount),
@@ -82,8 +84,8 @@ export function InvoiceForm({ userId, defaultRequestId }: { userId: string; defa
     })
 
     if (!error) {
-      if (selectedRequestId) {
-        router.push(`/dashboard/requests/${selectedRequestId}`)
+      if (requestId) {
+        router.push(`/dashboard/requests/${requestId}`)
       } else {
         router.push('/dashboard')
       }
@@ -128,7 +130,7 @@ export function InvoiceForm({ userId, defaultRequestId }: { userId: string; defa
                 <SelectValue placeholder="Выберите заявку (или оставьте пустым)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Без заявки</SelectItem>
+                <SelectItem value="__none__">Без заявки</SelectItem>
                 {requests.map((r) => (
                   <SelectItem key={r.id} value={r.id}>{r.internal_number}</SelectItem>
                 ))}
