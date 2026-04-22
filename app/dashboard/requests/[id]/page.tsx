@@ -52,6 +52,21 @@ export default function RequestDetailPage() {
   const router = useRouter()
   const supabase = createClient()
 
+useEffect(() => {
+  const fetchRequest = async () => {
+    const { data, error } = await supabase
+      .from('requests')
+      .select(`...`) // ваш запрос
+      .eq('id', id)
+      .single();
+    console.log('Request data:', data, 'Error:', error);
+    setRequest(data);
+    setLoading(false);
+  };
+  fetchRequest();
+}, [id, supabase]);
+
+  
   useEffect(() => {
     const fetchRequest = async () => {
       const { data } = await supabase
