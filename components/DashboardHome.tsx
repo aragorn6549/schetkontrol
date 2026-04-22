@@ -175,7 +175,7 @@ export function DashboardHome() {
             <Button>+ Новая заявка</Button>
           </Link>
           <Link href="/dashboard/invoices/new">
-            <Button variant="outline">+ Новый счёт (без заявки)</Button>
+            <Button variant="outline">+ Новый счёт</Button>
           </Link>
         </div>
       </div>
