@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
+import { Trash2 } from 'lucide-react'
 
 type RequestSummary = {
   id: string
@@ -167,20 +168,44 @@ export function DashboardHome() {
             {requests.length === 0 && <p>Нет заявок</p>}
             {requests.map((req) => (
               <Link key={req.id} href={`/dashboard/requests/${req.id}`}>
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">{req.internal_number}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>Проект: {req.project_name}</div>
-                      <div>Сделка: {req.deal_number}</div>
-                      <div>Счетов: {req.invoice_count}</div>
-                      <div>Общая сумма: {req.total_amount.toFixed(2)} ₽</div>
-                      <div>Создана: {format(new Date(req.created_at), 'dd.MM.yyyy', { locale: ru })}</div>
-                    </div>
-                  </CardContent>
-                </Card>
+                
+               <Card className="hover:shadow-md transition-shadow cursor-pointer relative">
+                 <Link href={`/dashboard/requests/${req.id}`} className="block">
+                   <CardHeader className="pb-2">
+                     <CardTitle className="text-lg">{req.internal_number}</CardTitle>
+                   </CardHeader>
+                   <CardContent>
+                     <div className="grid grid-cols-2 gap-2 text-sm">
+                       <div>Проект: {req.project_name}</div>
+                       <div>Сделка: {req.deal_number}</div>
+                       <div>Счетов: {req.invoice_count}</div>
+                       <div>Общая сумма: {req.total_amount.toFixed(2)} ₽</div>
+                       <div>Создана: {format(new Date(req.created_at), 'dd.MM.yyyy', { locale: ru })}</div>
+                     </div>
+                   </CardContent>
+                 </Link>
+                 {profile?.id === (req as any).created_by && (
+                   <Button
+                     variant="ghost"
+                     size="icon"
+                     className="absolute top-2 right-2 text-red-500 hover:text-red-700"
+                     onClick={async (e) => {
+                       e.preventDefault()
+                       e.stopPropagation()
+                       if (!confirm('Удалить заявку? Связанные счета останутся, но будут отвязаны.')) return
+                       const { error } = await supabase.from('requests').delete().eq('id', req.id)
+                       if (!error) {
+                         setRequests(prev => prev.filter(r => r.id !== req.id))
+                       } else {
+                         alert('Ошибка удаления: ' + error.message)
+                       }
+                     }}
+                   >
+                     <Trash2 className="h-4 w-4" />
+                   </Button>
+                 )}
+               </Card>
+                
               </Link>
             ))}
           </div>
@@ -190,21 +215,58 @@ export function DashboardHome() {
           <div className="grid gap-4">
             {standaloneInvoices.length === 0 && <p>Нет счетов вне заявок</p>}
             {standaloneInvoices.map((inv) => (
-              <Card key={inv.id}>
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between">
-                    <CardTitle className="text-lg">Счёт №{inv.invoice_number}</CardTitle>
-                    <Badge>
-                      {inv.status === 'draft' && 'Черновик'}
-                      {inv.status === 'pending_security' && 'На проверке СБ'}
-                      {inv.status === 'pending_director' && 'Ожидает директора'}
-                      {inv.status === 'approved' && 'Согласован'}
-                      {inv.status === 'paid' && 'Оплачен'}
-                      {inv.status === 'rejected' && 'Отклонен'}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
+      
+             <Card key={inv.id} className="relative">
+               <CardHeader className="pb-2">
+                 <div className="flex justify-between">
+                   <CardTitle className="text-lg">Счёт №{inv.invoice_number}</CardTitle>
+                   <Badge>
+                     {inv.status === 'draft' && 'Черновик'}
+                     {inv.status === 'pending_security' && 'На проверке СБ'}
+                     {inv.status === 'pending_director' && 'Ожидает директора'}
+                     {inv.status === 'approved' && 'Согласован'}
+                     {inv.status === 'paid' && 'Оплачен'}
+                     {inv.status === 'rejected' && 'Отклонен'}
+                   </Badge>
+                 </div>
+               </CardHeader>
+               <CardContent>
+                 <div className="grid grid-cols-2 gap-2 text-sm">
+                   <div>Контрагент: {inv.counterparty?.name || '—'}</div>
+                   <div>Сумма: {inv.amount.toFixed(2)} ₽</div>
+                   <div>Создан: {format(new Date(inv.created_at), 'dd.MM.yyyy', { locale: ru })}</div>
+                   <div>
+                     {profile?.role !== 'engineer' && inv.invoice_url && (
+                       <Button variant="outline" size="sm" asChild>
+                         <a href={inv.invoice_url} target="_blank" rel="noopener noreferrer">
+                           Просмотр счета
+                         </a>
+                       </Button>
+                     )}
+                   </div>
+                 </div>
+               </CardContent>
+               {profile?.id === (inv as any).created_by && (
+                 <Button
+                   variant="ghost"
+                   size="icon"
+                   className="absolute top-2 right-2 text-red-500 hover:text-red-700"
+                   onClick={async (e) => {
+                     e.stopPropagation()
+                     if (!confirm('Удалить счёт?')) return
+                     const { error } = await supabase.from('invoices').delete().eq('id', inv.id)
+                     if (!error) {
+                       setStandaloneInvoices(prev => prev.filter(i => i.id !== inv.id))
+                     } else {
+                       alert('Ошибка удаления: ' + error.message)
+                     }
+                   }}
+                 >
+                   <Trash2 className="h-4 w-4" />
+                 </Button>
+               )}
+             </Card>
+                               
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>Контрагент: {inv.counterparty?.name || '—'}</div>
                     <div>Сумма: {inv.amount.toFixed(2)} ₽</div>
