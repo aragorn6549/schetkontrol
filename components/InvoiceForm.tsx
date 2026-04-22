@@ -36,6 +36,7 @@ export function InvoiceForm({ userId, defaultRequestId }: { userId: string; defa
   const router = useRouter()
   const supabase = createClient()
 
+  // Загрузка списка контрагентов и заявок
   useEffect(() => {
     const fetchData = async () => {
       const [{ data: cp }, { data: req }] = await Promise.all([
@@ -79,7 +80,7 @@ export function InvoiceForm({ userId, defaultRequestId }: { userId: string; defa
       p_counterparty_id: selectedCounterpartyId,
       p_invoice_number: invoiceNumber,
       p_amount: parseFloat(amount),
-      p_invoice_url: invoiceUrl || null, // если пусто, передаём null
+      p_invoice_url: invoiceUrl || null,
       p_created_by: userId
     })
 
@@ -96,6 +97,9 @@ export function InvoiceForm({ userId, defaultRequestId }: { userId: string; defa
     }
     setLoading(false)
   }
+
+  // Определяем название выбранной заявки, если оно задано через defaultRequestId
+  const selectedRequest = requests.find(r => r.id === defaultRequestId)
 
   return (
     <Card>
@@ -127,20 +131,32 @@ export function InvoiceForm({ userId, defaultRequestId }: { userId: string; defa
               onChange={(e) => setInvoiceUrl(e.target.value)} 
             />
           </div>
-          <div>
-            <Label>Привязать к заявке (опционально)</Label>
-            <Select value={selectedRequestId} onValueChange={setSelectedRequestId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Выберите заявку (или оставьте пустым)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Без заявки</SelectItem>
-                {requests.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>{r.internal_number}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+
+          {/* Блок выбора заявки: если defaultRequestId задан — показываем только информацию, иначе Select */}
+          {defaultRequestId ? (
+            <div>
+              <Label>Привязано к заявке</Label>
+              <div className="p-2 bg-muted rounded-md text-sm">
+                {selectedRequest ? selectedRequest.internal_number : 'Загрузка...'}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <Label>Привязать к заявке (опционально)</Label>
+              <Select value={selectedRequestId} onValueChange={setSelectedRequestId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите заявку (или оставьте пустым)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Без заявки</SelectItem>
+                  {requests.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>{r.internal_number}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div>
             <Label>Контрагент</Label>
             <div className="flex gap-2">
