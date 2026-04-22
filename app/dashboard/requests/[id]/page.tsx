@@ -21,11 +21,12 @@ type Invoice = {
   invoice_url: string | null
   status: string
   created_at: string
+  created_by: string
   counterparties: {
     name: string
     inn: string
     status: string
-  }
+  } | null
 }
 
 type RequestDetails = {
@@ -50,51 +51,53 @@ export default function RequestDetailPage() {
   const router = useRouter()
   const supabase = createClient()
 
-useEffect(() => {
-  const fetchRequest = async () => {
-    try {
-      // 1. Загружаем саму заявку
-      const { data: reqData, error: reqError } = await supabase
-        .from('requests')
-        .select('*')
-        .eq('id', id)
-        .single();
+  useEffect(() => {
+    const fetchRequest = async () => {
+      try {
+        // 1. Загружаем заявку вместе с профилем создателя
+        const { data: reqData, error: reqError } = await supabase
+          .from('requests')
+          .select(`
+            *,
+            profiles:created_by(full_name)
+          `)
+          .eq('id', id)
+          .single()
 
-      if (reqError || !reqData) {
-        console.error('Ошибка загрузки заявки:', reqError);
-        setRequest(null);
-        setLoading(false);
-        return;
+        if (reqError) {
+          console.error('Ошибка загрузки заявки:', reqError)
+          setRequest(null)
+          return
+        }
+
+        // 2. Загружаем счета, привязанные к этой заявке, с данными контрагентов
+        const { data: invoicesData, error: invError } = await supabase
+          .from('invoices')
+          .select(`
+            *,
+            counterparties(name, inn, status)
+          `)
+          .eq('request_id', id)
+          .order('created_at', { ascending: false })
+
+        if (invError) {
+          console.error('Ошибка загрузки счетов:', invError)
+        }
+
+        // 3. Собираем полный объект заявки
+        setRequest({
+          ...reqData,
+          invoices: invoicesData || []
+        } as RequestDetails)
+      } catch (err) {
+        console.error('Критическая ошибка:', err)
+        setRequest(null)
+      } finally {
+        setLoading(false)
       }
-
-      // 2. Загружаем счета, связанные с заявкой
-      const { data: invoicesData, error: invError } = await supabase
-        .from('invoices')
-        .select(`
-          *,
-          counterparties(name, inn, status)
-        `)
-        .eq('request_id', id);
-
-      if (invError) {
-        console.error('Ошибка загрузки счетов:', invError);
-      }
-
-      // 3. Формируем объект заявки
-      setRequest({
-        ...reqData,
-        profiles: null, // ФИО создателя пока пропустим
-        invoices: invoicesData || []
-      } as RequestDetails);
-    } catch (err) {
-      console.error('Критическая ошибка:', err);
-      setRequest(null);
-    } finally {
-      setLoading(false);
     }
-  };
-  fetchRequest();
-}, [id, supabase]);
+    fetchRequest()
+  }, [id, supabase])
 
   const handleApproveInvoice = async (invoiceId: string) => {
     setActionLoading(true)
@@ -108,6 +111,8 @@ useEffect(() => {
       .eq('id', invoiceId)
     if (!error) {
       router.refresh()
+    } else {
+      alert('Ошибка при согласовании: ' + error.message)
     }
     setActionLoading(false)
   }
@@ -120,6 +125,8 @@ useEffect(() => {
       .eq('id', invoiceId)
     if (!error) {
       router.refresh()
+    } else {
+      alert('Ошибка при отклонении: ' + error.message)
     }
     setActionLoading(false)
   }
@@ -136,6 +143,8 @@ useEffect(() => {
       .eq('id', invoiceId)
     if (!error) {
       router.refresh()
+    } else {
+      alert('Ошибка при отметке оплаты: ' + error.message)
     }
     setActionLoading(false)
   }
@@ -146,7 +155,7 @@ useEffect(() => {
     if (!error) {
       router.refresh()
     } else {
-      alert('Ошибка удаления: ' + error.message)
+      alert('Ошибка удаления счёта: ' + error.message)
     }
   }
 
@@ -156,7 +165,7 @@ useEffect(() => {
     if (!error) {
       router.push('/dashboard')
     } else {
-      alert('Ошибка удаления: ' + error.message)
+      alert('Ошибка удаления заявки: ' + error.message)
     }
   }
 
@@ -237,16 +246,16 @@ useEffect(() => {
               const canPay = profile?.role === 'accountant' && inv.status === 'approved'
               const canRequestPayment = profile?.role === 'engineer' && inv.status === 'approved'
               const canView = profile?.role !== 'engineer' && inv.invoice_url
-              const canDelete = profile?.id === (inv as any).created_by
+              const canDelete = profile?.id === inv.created_by
 
               return (
                 <TableRow key={inv.id}>
                   <TableCell>{inv.invoice_number}</TableCell>
                   <TableCell>
-                    {inv.counterparties.name} (ИНН {inv.counterparties.inn})
+                    {inv.counterparties?.name || '—'} (ИНН {inv.counterparties?.inn || '—'})
                     <br />
                     <Badge variant="outline">
-                      {inv.counterparties.status === 'approved' ? '✅ Проверен' : inv.counterparties.status === 'rejected' ? '❌ Отклонен' : '⏳ На проверке'}
+                      {inv.counterparties?.status === 'approved' ? '✅ Проверен' : inv.counterparties?.status === 'rejected' ? '❌ Отклонен' : '⏳ На проверке'}
                     </Badge>
                   </TableCell>
                   <TableCell>{inv.amount.toFixed(2)} ₽</TableCell>
