@@ -69,19 +69,18 @@ useEffect(() => {
   
   useEffect(() => {
     const fetchRequest = async () => {
-      const { data } = await supabase
-        .from('requests')
-        .select(`
-          *,
-          profiles:created_by(full_name),
-          invoices(
-            *,
-            counterparties(name, inn, status),
-            profiles:created_by(full_name)
-          )
-        `)
-        .eq('id', id)
-        .single()
+const { data } = await supabase
+  .from('requests')
+  .select(`
+    *,
+    profiles:created_by(full_name),
+    invoices(
+      *,
+      counterparties(name, inn, status)
+    )
+  `)
+  .eq('id', id)
+  .single()
       setRequest(data)
       setLoading(false)
     }
