@@ -18,15 +18,19 @@ export default function NewRequestPage() {
   const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+     e.preventDefault();
+     if (!profile?.id) {
+        alert('Ошибка: пользователь не авторизован');
+        return;
+     }
+    setLoading(true);
     const { data, error } = await supabase
-      .from('requests')
-      .insert({
-        project_name: projectName,
-        deal_number: dealNumber,
-        created_by: profile?.id
-      })
+       .from('requests')
+       .insert({
+         project_name: projectName,
+         deal_number: dealNumber,
+         created_by: profile.id
+        })
       .select('id')
       .single()
     if (!error && data) {
