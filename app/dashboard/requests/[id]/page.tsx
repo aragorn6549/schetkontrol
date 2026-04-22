@@ -53,26 +53,39 @@ export default function RequestDetailPage() {
 useEffect(() => {
   const fetchRequest = async () => {
     try {
-      // Самый простой запрос: только поля таблицы requests
-      const { data, error } = await supabase
+      // 1. Загружаем саму заявку
+      const { data: reqData, error: reqError } = await supabase
         .from('requests')
         .select('*')
         .eq('id', id)
         .single();
 
-      if (error) {
-        console.error('Ошибка загрузки заявки:', error);
+      if (reqError || !reqData) {
+        console.error('Ошибка загрузки заявки:', reqError);
         setRequest(null);
-      } else if (data) {
-        // Приводим к типу RequestDetails (пока без вложенных полей)
-        setRequest({
-          ...data,
-          profiles: null, // временно
-          invoices: []    // временно
-        } as RequestDetails);
-      } else {
-        setRequest(null);
+        setLoading(false);
+        return;
       }
+
+      // 2. Загружаем счета, связанные с заявкой
+      const { data: invoicesData, error: invError } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          counterparties(name, inn, status)
+        `)
+        .eq('request_id', id);
+
+      if (invError) {
+        console.error('Ошибка загрузки счетов:', invError);
+      }
+
+      // 3. Формируем объект заявки
+      setRequest({
+        ...reqData,
+        profiles: null, // ФИО создателя пока пропустим
+        invoices: invoicesData || []
+      } as RequestDetails);
     } catch (err) {
       console.error('Критическая ошибка:', err);
       setRequest(null);
