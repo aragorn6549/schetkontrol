@@ -20,7 +20,7 @@ type Invoice = {
   invoice_url: string
   status: string
   created_at: string
-  counterparty: {
+  counterparties: {
     name: string
     inn: string
     status: string
@@ -60,7 +60,7 @@ export default function RequestDetailPage() {
           profiles:created_by(full_name),
           invoices(
             *,
-            counterparty(name, inn, status),
+            counterparties(name, inn, status),
             profiles:created_by(full_name)
           )
         `)
@@ -184,10 +184,10 @@ export default function RequestDetailPage() {
                 <TableRow key={inv.id}>
                   <TableCell>{inv.invoice_number}</TableCell>
                   <TableCell>
-                    {inv.counterparty.name} (ИНН {inv.counterparty.inn})
+                    {inv.counterparties.name} (ИНН {inv.counterparties.inn})
                     <br />
                     <Badge variant="outline">
-                      {inv.counterparty.status === 'approved' ? '✅ Проверен' : inv.counterparty.status === 'rejected' ? '❌ Отклонен' : '⏳ На проверке'}
+                      {inv.counterparties.status === 'approved' ? '✅ Проверен' : inv.counterparties.status === 'rejected' ? '❌ Отклонен' : '⏳ На проверке'}
                     </Badge>
                   </TableCell>
                   <TableCell>{inv.amount.toFixed(2)} ₽</TableCell>
