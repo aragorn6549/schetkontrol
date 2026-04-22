@@ -1,3 +1,4 @@
+// components/DashboardHome.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -11,7 +12,6 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 
-// Типы данных
 type RequestSummary = {
   id: string
   internal_number: string
@@ -41,100 +41,87 @@ export function DashboardHome() {
   const [requests, setRequests] = useState<RequestSummary[]>([])
   const [standaloneInvoices, setStandaloneInvoices] = useState<InvoiceSummary[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const { profile } = useAuth()
   const supabase = createClient()
   const role = profile?.role
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+      setLoading(true)
 
-        // Запрос заявок с агрегацией
-        let requestsQuery = supabase
-          .from('requests')
-          .select(`
-            id, internal_number, project_name, deal_number, created_at,
-            invoices ( id )
-          `)
-          .order('created_at', { ascending: false })
+      // Запрос заявок с агрегацией
+      let requestsQuery = supabase
+        .from('requests')
+        .select(`
+          id, internal_number, project_name, deal_number, created_at,
+          invoices ( id )
+        `)
+        .order('created_at', { ascending: false })
 
-        if (role === 'engineer' && profile?.id) {
-          requestsQuery = requestsQuery.eq('created_by', profile.id)
-        }
-
-        const { data: reqData, error: reqError } = await requestsQuery
-        if (reqError) throw new Error(reqError.message)
-
-        // Для каждой заявки считаем сумму счетов отдельно
-        const requestsWithAmount: RequestSummary[] = await Promise.all(
-          (reqData || []).map(async (req: any) => {
-            const { data: sumData, error: sumError } = await supabase
-              .from('invoices')
-              .select('amount')
-              .eq('request_id', req.id)
-
-            if (sumError) throw new Error(sumError.message)
-            const total = (sumData || []).reduce((s, inv) => s + (inv.amount || 0), 0)
-            return {
-              id: req.id,
-              internal_number: req.internal_number,
-              project_name: req.project_name,
-              deal_number: req.deal_number,
-              created_at: req.created_at,
-              invoice_count: req.invoices?.length || 0,
-              total_amount: total
-            }
-          })
-        )
-        setRequests(requestsWithAmount)
-
-        // Запрос счетов без заявки
-        let invQuery = supabase
-          .from('invoices')
-          .select(`
-            id,
-            invoice_number,
-            amount,
-            invoice_url,
-            status,
-            created_at,
-            counterparty:counterparty_id ( name ),
-            request:request_id ( internal_number )
-          `)
-          .is('request_id', null)
-          .order('created_at', { ascending: false })
-
-        if (role === 'engineer' && profile?.id) {
-          invQuery = invQuery.eq('created_by', profile.id)
-        } else if (role === 'accountant') {
-          invQuery = invQuery.in('status', ['approved', 'paid'])
-        }
-
-        const { data: invData, error: invError } = await invQuery
-        if (invError) throw new Error(invError.message)
-
-        // Преобразуем данные к типу InvoiceSummary (обрабатываем возможные массивы)
-        const formattedInvoices: InvoiceSummary[] = (invData || []).map((inv: any) => ({
-          id: inv.id,
-          invoice_number: inv.invoice_number,
-          amount: inv.amount,
-          invoice_url: inv.invoice_url,
-          status: inv.status,
-          created_at: inv.created_at,
-          counterparty: Array.isArray(inv.counterparty) ? inv.counterparty[0] : inv.counterparty,
-          request: Array.isArray(inv.request) ? inv.request[0] : inv.request
-        }))
-
-        setStandaloneInvoices(formattedInvoices)
-      } catch (err: any) {
-        console.error('Ошибка загрузки данных:', err)
-        setError(err.message || 'Не удалось загрузить данные. Проверьте подключение к базе.')
-      } finally {
-        setLoading(false)
+      if (role === 'engineer' && profile?.id) {
+        requestsQuery = requestsQuery.eq('created_by', profile.id)
       }
+
+      const { data: reqData, error: reqError } = await requestsQuery
+      if (reqError) console.error('Ошибка загрузки заявок:', reqError)
+
+      // Для каждой заявки считаем сумму счетов отдельно
+      const requestsWithAmount: RequestSummary[] = await Promise.all(
+        (reqData || []).map(async (req: any) => {
+          const { data: sumData, error } = await supabase
+            .from('invoices')
+            .select('amount')
+            .eq('request_id', req.id)
+
+          if (error) console.error('Ошибка получения сумм:', error)
+          const total = (sumData || []).reduce((s, inv) => s + (inv.amount || 0), 0)
+          return {
+            id: req.id,
+            internal_number: req.internal_number,
+            project_name: req.project_name,
+            deal_number: req.deal_number,
+            created_at: req.created_at,
+            invoice_count: req.invoices?.length || 0,
+            total_amount: total
+          }
+        })
+      )
+      setRequests(requestsWithAmount)
+
+      // Запрос счетов без заявки
+      let invQuery = supabase
+        .from('invoices')
+        .select(`
+          id, invoice_number, amount, invoice_url, status, created_at,
+          counterparty ( name ),
+          request ( internal_number )
+        `)
+        .is('request_id', null)
+        .order('created_at', { ascending: false })
+
+      if (role === 'engineer' && profile?.id) {
+        invQuery = invQuery.eq('created_by', profile.id)
+      } else if (role === 'accountant') {
+        invQuery = invQuery.in('status', ['approved', 'paid'])
+      }
+
+      const { data: invData, error: invError } = await invQuery
+      if (invError) console.error('Ошибка загрузки счетов:', invError)
+
+      // Преобразуем данные к типу InvoiceSummary (обрабатываем возможные массивы)
+      const formattedInvoices: InvoiceSummary[] = (invData || []).map((inv: any) => ({
+        id: inv.id,
+        invoice_number: inv.invoice_number,
+        amount: inv.amount,
+        invoice_url: inv.invoice_url,
+        status: inv.status,
+        created_at: inv.created_at,
+        counterparty: Array.isArray(inv.counterparty) ? inv.counterparty[0] : inv.counterparty,
+        request: Array.isArray(inv.request) ? inv.request[0] : inv.request
+      }))
+
+      setStandaloneInvoices(formattedInvoices)
+      setLoading(false)
     }
 
     fetchData()
@@ -142,17 +129,6 @@ export function DashboardHome() {
 
   if (loading) {
     return <div className="p-4">Загрузка данных...</div>
-  }
-
-  if (error) {
-    return (
-      <div className="p-4 text-red-500">
-        <p>Ошибка: {error}</p>
-        <Button className="mt-2" onClick={() => window.location.reload()}>
-          Попробовать снова
-        </Button>
-      </div>
-    )
   }
 
   return (
