@@ -60,11 +60,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
-      if (user) {
-        await fetchProfile(user.id)
-      } else {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser()
+        if (error) throw error
+        setUser(user)
+        if (user) {
+          await fetchProfile(user.id)
+        } else {
+          setProfile(null)
+          setLoading(false)
+        }
+      } catch (err) {
+        // Невалидная/истёкшая сессия в куках — сбрасываем состояние
+        setUser(null)
         setProfile(null)
         setLoading(false)
       }
