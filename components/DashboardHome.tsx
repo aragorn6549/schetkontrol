@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/AuthProvider'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -44,7 +44,7 @@ export function DashboardHome() {
   const [standaloneInvoices, setStandaloneInvoices] = useState<InvoiceSummary[]>([])
   const [loading, setLoading] = useState(true)
   const { profile } = useAuth()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const role = profile?.role
 
   useEffect(() => {
@@ -140,7 +140,7 @@ export function DashboardHome() {
     }
 
     fetchData()
-  }, [supabase, role, profile?.id])
+  }, [role, profile?.id])
 
   const handleDeleteRequest = async (reqId: string) => {
     if (!confirm('Удалить заявку? Связанные счета останутся, но будут отвязаны.')) return

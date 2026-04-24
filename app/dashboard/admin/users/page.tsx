@@ -3,22 +3,27 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/components/AuthProvider'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { redirect } from 'next/navigation'
 
 const roles = ['engineer', 'security', 'director', 'accountant', 'admin']
 
 export default function UsersPage() {
-  const { profile } = useAuth()
+  const { profile, loading } = useAuth()
   const [users, setUsers] = useState<any[]>([])
+  const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    if (profile?.role !== 'admin') redirect('/dashboard')
+    if (loading) return
+    if (profile?.role !== 'admin') {
+      router.push('/dashboard')
+      return
+    }
     fetchUsers()
-  }, [profile])
+  }, [profile, loading])
 
   const fetchUsers = async () => {
     const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
@@ -47,7 +52,7 @@ export default function UsersPage() {
           {users.map((u) => (
             <TableRow key={u.id}>
               <TableCell>{u.full_name}</TableCell>
-              <TableCell>{u.id}</TableCell>
+              <TableCell>{u.email ?? u.id}</TableCell>
               <TableCell>
                 <Select value={u.role} onValueChange={(val) => updateRole(u.id, val)}>
                   <SelectTrigger className="w-40">

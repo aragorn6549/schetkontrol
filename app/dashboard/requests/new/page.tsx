@@ -13,7 +13,7 @@ export default function NewRequestPage() {
   const [projectName, setProjectName] = useState('')
   const [dealNumber, setDealNumber] = useState('')
   const [loading, setLoading] = useState(false)
-  const { profile } = useAuth()
+  const { profile, loading } = useAuth()
   const router = useRouter()
   const supabase = createClient()
 
@@ -40,8 +40,10 @@ const handleSubmit = async (e: React.FormEvent) => {
   setLoading(false)
 }
 
+  if (loading) return <div className="p-4">Загрузка...</div>
+
   if (!profile || (profile.role !== 'engineer' && profile.role !== 'director' && profile.role !== 'accountant')) {
-    return <div>Доступ запрещен</div>
+    return <div className="p-4 text-red-500">Доступ запрещен</div>
   }
 
   return (

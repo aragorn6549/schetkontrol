@@ -43,7 +43,8 @@ type RequestDetails = {
 }
 
 export default function RequestDetailPage() {
-  const { id } = useParams()
+  const params = useParams()
+  const id = Array.isArray(params.id) ? params.id[0] : params.id
   const [request, setRequest] = useState<RequestDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
@@ -51,53 +52,52 @@ export default function RequestDetailPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  useEffect(() => {
-    const fetchRequest = async () => {
-      try {
-        // 1. Загружаем заявку вместе с профилем создателя
-        const { data: reqData, error: reqError } = await supabase
-          .from('requests')
-          .select(`
-            *,
-            profiles:created_by(full_name)
-          `)
-          .eq('id', id)
-          .single()
+  const fetchRequest = async () => {
+    try {
+      const { data: reqData, error: reqError } = await supabase
+        .from('requests')
+        .select(`
+          *,
+          profiles:created_by(full_name)
+        `)
+        .eq('id', id)
+        .single()
 
-        if (reqError) {
-          console.error('Ошибка загрузки заявки:', reqError)
-          setRequest(null)
-          return
-        }
-
-        // 2. Загружаем счета, привязанные к этой заявке, с данными контрагентов
-        const { data: invoicesData, error: invError } = await supabase
-          .from('invoices')
-          .select(`
-            *,
-            counterparties(name, inn, status)
-          `)
-          .eq('request_id', id)
-          .order('created_at', { ascending: false })
-
-        if (invError) {
-          console.error('Ошибка загрузки счетов:', invError)
-        }
-
-        // 3. Собираем полный объект заявки
-        setRequest({
-          ...reqData,
-          invoices: invoicesData || []
-        } as RequestDetails)
-      } catch (err) {
-        console.error('Критическая ошибка:', err)
+      if (reqError) {
+        console.error('Ошибка загрузки заявки:', reqError)
         setRequest(null)
-      } finally {
-        setLoading(false)
+        return
       }
+
+      const { data: invoicesData, error: invError } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          counterparties(name, inn, status)
+        `)
+        .eq('request_id', id)
+        .order('created_at', { ascending: false })
+
+      if (invError) {
+        console.error('Ошибка загрузки счетов:', invError)
+      }
+
+      setRequest({
+        ...reqData,
+        invoices: invoicesData || []
+      } as RequestDetails)
+    } catch (err) {
+      console.error('Критическая ошибка:', err)
+      setRequest(null)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchRequest()
-  }, [id, supabase])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   const handleApproveInvoice = async (invoiceId: string) => {
     setActionLoading(true)
@@ -110,7 +110,7 @@ export default function RequestDetailPage() {
       })
       .eq('id', invoiceId)
     if (!error) {
-      router.refresh()
+      await fetchRequest()
     } else {
       alert('Ошибка при согласовании: ' + error.message)
     }
@@ -124,7 +124,7 @@ export default function RequestDetailPage() {
       .update({ status: 'rejected' })
       .eq('id', invoiceId)
     if (!error) {
-      router.refresh()
+      await fetchRequest()
     } else {
       alert('Ошибка при отклонении: ' + error.message)
     }
@@ -142,7 +142,7 @@ export default function RequestDetailPage() {
       })
       .eq('id', invoiceId)
     if (!error) {
-      router.refresh()
+      await fetchRequest()
     } else {
       alert('Ошибка при отметке оплаты: ' + error.message)
     }
@@ -153,7 +153,7 @@ export default function RequestDetailPage() {
     if (!confirm('Удалить счёт?')) return
     const { error } = await supabase.from('invoices').delete().eq('id', invoiceId)
     if (!error) {
-      router.refresh()
+      await fetchRequest()
     } else {
       alert('Ошибка удаления счёта: ' + error.message)
     }
