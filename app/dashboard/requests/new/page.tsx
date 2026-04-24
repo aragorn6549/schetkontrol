@@ -12,33 +12,33 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 export default function NewRequestPage() {
   const [projectName, setProjectName] = useState('')
   const [dealNumber, setDealNumber] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const { profile, loading } = useAuth()
   const router = useRouter()
   const supabase = createClient()
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
-  if (!profile?.id) {
-    alert('Ошибка: пользователь не авторизован')
-    return
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!profile?.id) {
+      alert('Ошибка: пользователь не авторизован')
+      return
+    }
+    setSubmitting(true)
+
+    const { data: requestId, error } = await supabase.rpc('create_request', {
+      p_project_name: projectName,
+      p_deal_number: dealNumber,
+      p_created_by: profile.id
+    })
+
+    if (!error && requestId) {
+      router.push(`/dashboard/requests/${requestId}`)
+    } else {
+      console.error('Ошибка создания заявки:', error)
+      alert('Ошибка создания заявки')
+    }
+    setSubmitting(false)
   }
-  setLoading(true)
-  
-  const { data: requestId, error } = await supabase.rpc('create_request', {
-    p_project_name: projectName,
-    p_deal_number: dealNumber,
-    p_created_by: profile.id
-  })
-  
-  if (!error && requestId) {
-    router.push(`/dashboard/requests/${requestId}`)
-  } else {
-    console.error('Ошибка создания заявки:', error)
-    alert('Ошибка создания заявки')
-  }
-  setLoading(false)
-}
 
   if (loading) return <div className="p-4">Загрузка...</div>
 
@@ -61,8 +61,8 @@ const handleSubmit = async (e: React.FormEvent) => {
             <Label>Номер сделки</Label>
             <Input value={dealNumber} onChange={(e) => setDealNumber(e.target.value)} required />
           </div>
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Создание...' : 'Создать заявку'}
+          <Button type="submit" disabled={submitting}>
+            {submitting ? 'Создание...' : 'Создать заявку'}
           </Button>
         </form>
       </CardContent>
